@@ -19,12 +19,15 @@ app.use(bodyParser.json());
 
 
 app.post("/api/user/register", (req, res) => {
-    //console.log(req.body);
-    
     const hash = bcrypt.hashSync(req.body.pasword);
-    const newuser = { fname: req.body.fname, lname: req.body.lname, username: req.body.username, password: hash, status: req.body.status };                                       
-    //console.log(newuser.fname);
-    
+    const newuser = {
+        fname: req.body.fname,
+        lname: req.body.lname,
+        username: req.body.username,
+        password: hash,
+        status: req.body.status
+     }; 
+
     User.findOne({ username: newuser.username }, (err, data) => {
         if(err) {
             res.json({msg: "Error"});
@@ -36,19 +39,38 @@ app.post("/api/user/register", (req, res) => {
                     if (err) {
                         res.json({msg: "Error"});
                     }
-                    res.json({msg: "Signup Successfully", userdata: usersdata})
-
+                    res.json({msg: "Signup Successfully", userdata: usersdata});
                 }
             )
         }
     })
-
-    // res.send(req.body);
-    // console.log("response")
-    // res.send("inside node code")
-
 });
 
+app.post("/api/user/login", (req, res) => {
+    var username1 = req.body.username;
+    var password1 = req.body.password;
+    value = false;
+    User.findOne({ username: username1 }).exec( (err, data) => {
+
+        if (err) {
+            res.json({msg: "Error"});
+        }
+        // if(data.status === 'inactive') {
+        //     res.json({msg: "Your account is deativaed!!"});
+        // } 
+        if (!data) {
+            res.json({msg: "Email Not Found"});
+        } else {
+            
+            value = bcrypt.compareSync(password1, data.password);
+            if (value) {                
+                res.json({msg: "Login Successfull!!", userdata: data});
+            } else {
+                res.json({msg: "Password is wrong"});
+            }
+        }
+    });
+});
 
 
 
