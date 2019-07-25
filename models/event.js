@@ -10,7 +10,7 @@ var eventSchema = new mongoose.Schema
     description: String,
     offset: Number,
     type: String,
-    user: {
+    user_id: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "user"
     }    
