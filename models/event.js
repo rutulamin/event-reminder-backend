@@ -2,16 +2,33 @@ var mongoose = require("mongoose");
 
 var eventSchema = new mongoose.Schema
 ({
-    title: String,
-    fromdate: String,
-    todate: String,
-    category: String,
-    repeat: String,
+    title: {
+        type: String,
+        required: true
+    },
+    startdate: {
+        type: String,
+        required: true
+    },
+    enddate: String,
+    category: {
+        type: String,
+        required: true
+    },
+    repeat: {
+        type: String,
+        required: true
+    },
+    location: String,
     description: String,
     offset: Number,
-    type: String,
+    type: {
+        type: String,
+        required: true
+    },
     user_id: {
         type: mongoose.Schema.Types.ObjectId,
+        required: true,
         ref: "user"
     }    
 });
