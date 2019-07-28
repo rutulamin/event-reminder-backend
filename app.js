@@ -8,7 +8,8 @@ const express = require("express"),
       rrule = require("rrule");
       jwt = require("jsonwebtoken"),
       User = require("./models/user"),
-      Event = require("./models/event")
+      Event = require("./models/event"),
+      _ = require("lodash")
 
 mongoose.connect("mongodb://localhost:27017/EventReminder", {useNewUrlParser: true});
 const corsOptions = {
@@ -28,7 +29,7 @@ function verifyToken(req, res, next) {
     if(token === 'null') {
       return res.status(401).send('Unauthorized request');    
     }
-    let payload = jwt.verify(token, 'rutul');
+    let payload = jwt.verify(token, '#$rutul$#');
     if(!payload) {
       return res.status(401).send('Unauthorized request')  ;  
     }
@@ -90,76 +91,95 @@ function setWeekday(day) {
     }
 }
 
-const rrule1 = getRule("2019-07-26 10:00:00", 'Weekly');
-const rule = new rrule.RRule(rrule1);
-                rule.all().forEach(
-                    (date) => {
-                       console.log(date);
-                    }
-                );   
+// const rule = new rrule.RRule(rrule1);
+//                 rule.all().forEach(
+//                     (date) => {
+//                        console.log(date);
+//                     }
+//                 ); 
+
 function getRule(startdate, repeat) {
 
     const monthday = parseInt(moment(startdate, 'YYYY-MM-DD HH:mm:ss',true).format('DD'));
     const month = parseInt(moment(startdate, 'YYYY-MM-DD HH:mm:ss',true).format('MM'));
     const weekday1 = parseInt(moment(startdate, 'YYYY-MM-DD HH:mm:ss',true).weekday());
-    console.log(weekday1);
-    
-    console.log(rrule.RRule.MO);
     
     const weekday = setWeekday(weekday1);
     // console.log(weekday);
     
-    const UTCDate = new Date(Date.UTC(
+    const UTCDate = new Date(
         parseInt(moment(startdate, 'YYYY-MM-DD HH:mm:ss',true).format('YYYY')),
         parseInt(moment(startdate, 'YYYY-MM-DD HH:mm:ss',true).format('MM')) - 1,
         parseInt(moment(startdate, 'YYYY-MM-DD HH:mm:ss',true).format('DD')),
         parseInt(moment(startdate, 'YYYY-MM-DD HH:mm:ss',true).format('HH')),
         parseInt(moment(startdate, 'YYYY-MM-DD HH:mm:ss',true).format('mm')),
         parseInt(moment(startdate, 'YYYY-MM-DD HH:mm:ss',true).format("ss"))
-    ));
+    );
+    const cyear = UTCDate.getFullYear();
+    const cmonth = UTCDate.getMonth();
+    const cday = UTCDate.getDate();
 
-        
+    const until = new Date(cyear + 1, cmonth + 1, cday);
+
+      // console.log('startdate', startdate, UTCDate);  
     switch (repeat) {
         case 'Does not repeat':
-            return { };
+            return {
+                dtstart: UTCDate,
+                count: 1,
+                tzid: 'Asia/Kolkata'
+             };
             break;
         case 'Daily':
             return {
                 freq: rrule.RRule.DAILY,
                 dtstart: UTCDate,
-                count: 30,
+                tzid: 'Asia/Kolkata',
+                until: until
+                // count: count
             };
             break;
         case 'Weekly':
             return {
                 freq: rrule.RRule.WEEKLY,
                 dtstart: UTCDate,
-                byweekday: weekday,
-                count: 30,
+                byweekday: [weekday],
+                tzid: 'Asia/Kolkata',
+                until: until
+                // count: count,
             };
             break;
         case 'Monthly':
             return {
                 freq: rrule.RRule.MONTHLY,
+                dtstart: UTCDate,
                 bymonthday: [monthday],
-                count: 30,
-                dtstart: UTCDate
+                tzid: 'Asia/Kolkata',
+                until: until
+                // count: count
             };
             break;
         case 'Yearly':
             return {
                 freq: rrule.RRule.YEARLY,
+                dtstart: UTCDate,
                 bymonthday: [monthday],
                 bymonth: [month],
-                count: 30,
-                dtstart: UTCDate
+                tzid: 'Asia/Kolkata',
+                until: until
+                // count: count
             };
         default:
+            return {
+                dtstart: UTCDate,
+                tzid: 'Asia/Kolkata',
+                count: 1
+            }
             break;
     }
 }
 
-app.get("/api/user",verifyToken, (req, res) => {
+app.get("/api/user", verifyToken, (req, res) => {
     User.findById(req.user_id, (err, data) => {
         if(err) {
             res.json({msg: "Error"});
@@ -193,7 +213,7 @@ app.post("/api/user/register", (req, res) => {
                         res.json({msg: "Error"});
                     }
                     let payload = { subject: usersdata._id}
-                    let token = jwt.sign(payload, 'rutul');
+                    let token = jwt.sign(payload, '#$rutul$#');
                     res.json({token: token});
                 }
             )
@@ -216,7 +236,7 @@ app.post("/api/user/login", (req, res) => {
                     res.json({msg: "Your account is deativaed!!"});
                 }                 
                 let payload = { subject: data._id}
-                let token = jwt.sign(payload, 'rutul');
+                let token = jwt.sign(payload, '#$rutul$#');
                 res.json({token: token});
             } else {
                 res.json({msg: "Password is wrong"});
@@ -225,38 +245,109 @@ app.post("/api/user/login", (req, res) => {
     });
 });
 
-app.get("/api/event", (req,res) => {
-    Event.find({ user_id: mongoose.Types.ObjectId("5d39a061ceab787029f711a5") }, (err, data) => {
-         //console.log(data);
-        
+app.get("/api/event", verifyToken, (req,res) => {
+    
+    Event.find({ user_id: mongoose.Types.ObjectId(req.user_id) }, (err, data) => {        
         if(err) {
-           // console.log(err);
-            
             return res.status(400).send('Data not found from database.');
         }
-        resData = [];
-        for (let i = 0; i < data.length; i++) {
+        todayEvent = [];
+        upcomingEvent = [];
+        oldEvent = [];
+        todayReminder = [];
+        upcomingReminder = [];
+        oldReminder = [];
 
-            // console.log(data[i].type);
+        for (let i = 0; i < data.length; i++) {
             if(data[i].type === 'event') {
+                const rrule1 = getRule(data[i].startdate, data[i].repeat);
+                const rule = new rrule.RRule(rrule1);
+                const endtime = moment(data[i].enddate, 'YYYY-MM-DD HH:mm:ss', true).format('HH:mm:ss');
+                rule.all().forEach(
+                    (date) => {                        
+                        const d1 = new Date(date).toISOString();
+                        const date1 = moment(d1.toString()).tz('Asia/Kolkata').format('DD-MM-YYYY HH:mm:ss');
+                        const d2 = moment(date1, 'DD-MM-YYYY').add(parseInt(data[i].offset), 'days');
+                        const enddate = d2.format('DD-MM-YYYY') + ' ' + endtime;
+                        // console.log(date, d1, date1, d2, enddate);
+                        let obj = {};
+                        obj = {
+                            id: data[i]._id,
+                            title: data[i].title,
+                            location: data[i].location,
+                            category: data[i].category,
+                            startdate: date1,
+                            enddate: enddate,
+                            repeat: data[i].repeat,
+                            type: data[i].type
+                        };
+                        if(moment().isBetween(moment(d1.toString()).format('YYYY-MM-DD'), d2.format('YYYY-MM-DD'))) {
+                            todayEvent.push(obj);
+                        } else if(moment().isAfter(d2.format('YYYY-MM-DD'))) {
+                            oldEvent.push(obj);
+                        } else if (moment().isBefore(moment(d1.toString()).format('YYYY-MM-DD'))) {
+                            upcomingEvent.push(obj);
+                        }
+                    }
+                );            
+            } else if (data[i].type === 'reminder') {
                 const rrule1 = getRule(data[i].startdate, data[i].repeat);
                 const rule = new rrule.RRule(rrule1);
                 rule.all().forEach(
                     (date) => {
-                        console.log(date);
+                        const d1 = new Date(date).toISOString();
+                        const date1 = moment(d1.toString()).tz('Asia/Kolkata').format('DD-MM-YYYY HH:mm:ss');;
+                        let obj = {};
+                        obj = {
+                            id: data[i]._id,
+                            title: data[i].title,
+                            category: data[i].category,
+                            startdate: date1,
+                            repeat: data[i].repeat,
+                            type: data[i].type
+                        };
+                        if(moment().isSame(moment(d1.toString()).format('YYYY-MM-DD'))) {
+                            todayReminder.push(obj);
+                        } else if(moment().isAfter(moment(d1.toString()).format('YYYY-MM-DD'))) {
+                            oldReminder.push(obj);
+                        } else if (moment().isBefore(moment(d1.toString()).format('YYYY-MM-DD'))) {
+                            upcomingReminder.push(obj);
+                        }
                     }
                 );            
             
-            } else if (data[i].type === 'reminder') {
-    
             } else {
                 return res.status(400).send('Event have not valid type');
-            }
-            
+            }   
         }
         
-    })
+        return res.status(200).json({
+            data: {
+                todayEvent: sort_array(todayEvent),
+                oldEvent: reverse_sort_array(oldEvent),
+                upcomingEvent: sort_array(upcomingEvent),
+                todayReminder: sort_array(todayReminder),
+                oldReminder: reverse_sort_array(oldReminder),
+                upcomingReminder: sort_array(upcomingReminder)
+            }
+        });
+
+    });
 });
+
+function sort_array(array) {
+    array = _.sortBy(array, (o) => {
+        { return new moment(o.startdate, 'DD-MM-YYYY HH:mm:ss', true); }
+    });
+    return array;
+}
+
+function reverse_sort_array(array) {
+    array = _.sortBy(array, (o) => {
+        { return new moment(o.startdate, 'DD-MM-YYYY HH:mm:ss', true); }
+    }).reverse();
+    return array;
+}
 
 app.post("/api/event/", [checkRequiredField, verifyToken], (req, res) => {
     
@@ -270,7 +361,7 @@ app.post("/api/event/", [checkRequiredField, verifyToken], (req, res) => {
         description: req.body.description,
         offset: req.body.offset,
         type: req.body.type,
-        user_id: req.user_id
+        user_id: mongoose.Types.ObjectId(req.user_id)
     };
     Event.create(obj, (err, data) => {
         if(err) {
