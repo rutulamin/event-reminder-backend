@@ -9,6 +9,7 @@ const express = require('express'),
 
 router.get("/", eventMiddleware.verifyToken, (req,res) => {
     
+    
     Event.find({ user_id: mongoose.Types.ObjectId(req.user_id) }, (err, data) => {        
         if(err) {
             return res.status(400).send('Data not found from database.');
@@ -124,7 +125,89 @@ router.post("/", [eventMiddleware.checkRequiredField, eventMiddleware.verifyToke
     })   
 })
 
+router.get("/calendar-event", eventMiddleware.verifyToken, (req,res) => {
+    
+    Event.find({ user_id: mongoose.Types.ObjectId(req.user_id) }, (err, data) => {        
+        if(err) {
+            return res.status(400).send('Data not found from database.');
+        }
+        Event1 = [];
+        Reminder1 = [];
 
+        for (let i = 0; i < data.length; i++) {
+            if(data[i].type === 'event') {
+                const rrule1 = getRule(data[i].startdate, data[i].repeat);
+                const rule = new rrule.RRule(rrule1);
+                const endtime = moment(data[i].enddate, 'YYYY-MM-DD HH:mm:ss', true).format('HH:mm:ss');
+                rule.all().forEach(
+                    (date) => {                        
+                        const d1 = new Date(date).toISOString();
+                        const date1 = moment(d1.toString()).tz('Asia/Kolkata').format('DD-MM-YYYY HH:mm:ss');
+                        const d2 = moment(date1, 'DD-MM-YYYY').add(parseInt(data[i].offset), 'days');
+                        const enddate = d2.format('DD-MM-YYYY') + ' ' + endtime;
+                        // console.log(date, d1, date1, d2, enddate);
+                        let obj = {};
+                        // console.log(moment(date1, 'DD-MM-YYYY HH:mm:ss', true).toDate());
+                        
+                        // console.log(moment(enddate, 'DD-MM-YYYY HH:mm:ss', true).toDate());
+                        
+                        obj = {
+                            id: data[i]._id,
+                            title: data[i].title,
+                            // start: moment(date1, 'DD-MM-YYYY HH:mm:ss', true).toDate(),
+                            startdate: moment(date1, 'DD-MM-YYYY HH:mm:ss', true).toDate(),
+                            enddate: moment(enddate, 'DD-MM-YYYY HH:mm:ss', true).toDate(),
+                            // location: data[i].location,
+                            // category: data[i].category,
+                            // repeat: data[i].repeat,
+                            // type: data[i].type
+                        };
+                        Event1.push(obj);
+                    }
+                );            
+            } else if (data[i].type === 'reminder') {
+                const rrule1 = getRule(data[i].startdate, data[i].repeat);
+                const rule = new rrule.RRule(rrule1);
+                rule.all().forEach(
+                    (date) => {
+                        const d1 = new Date(date).toISOString();
+                        const date1 = moment(d1.toString()).tz('Asia/Kolkata').format('DD-MM-YYYY HH:mm:ss');;
+                        let obj = {};
+                        obj = {
+                            id: data[i]._id,
+                            title: data[i].title,
+                            startdate: moment(date1, 'DD-MM-YYYY HH:mm:ss', true).toDate(),
+                            // category: data[i].category,
+                            // repeat: data[i].repeat,
+                            // type: data[i].type
+                        }; 
+                            Reminder1.push(obj);
+                    }
+                );            
+            
+            } else {
+                return res.status(400).send('Event have not valid type');
+            }   
+        }     
+          
+        return res.status(200).json({
+            data: {
+                Event1: Event1,
+                Reminder1: Reminder1,
+            }
+        });
+
+    });
+});
+
+router.get("/:id", [eventMiddleware.verifyToken], (req, res) => {
+    Event.findById(req.params.id, (err, data) => {
+        if(err) {
+            return res.status(400).send('Data not found from database.');
+        } 
+        return res.json({data: data})
+    });
+});
 
 function setWeekday(day) {
     switch (day) {
@@ -172,12 +255,13 @@ function getRule(startdate, repeat) {
         parseInt(moment(startdate, 'YYYY-MM-DD HH:mm:ss',true).format('mm')),
         parseInt(moment(startdate, 'YYYY-MM-DD HH:mm:ss',true).format("ss"))
     );
+    
+    
     const cyear = UTCDate.getFullYear();
     const cmonth = UTCDate.getMonth();
     const cday = UTCDate.getDate();
 
-    const until = new Date(cyear + 1, cmonth + 1, cday);
-
+    const until = new Date(cyear + 2, cmonth + 2, cday + 1);
       // console.log('startdate', startdate, UTCDate);  
     switch (repeat) {
         case 'Does not repeat':

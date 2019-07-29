@@ -13,7 +13,7 @@ const express = require("express"),
 
 mongoose.connect("mongodb://localhost:27017/EventReminder", {useNewUrlParser: true});
 const corsOptions = {
-    origin: 'http://localhost:4200',
+    origin: 'http://192.168.2.78:4200',
     optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204 
 }
 
