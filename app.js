@@ -7,13 +7,15 @@ const express = require("express"),
       moment = require("moment-timezone"),
       rrule = require("rrule"),
       jwt = require("jsonwebtoken"),
+      dotenv = require("dotenv"),
       _ = require("lodash"),
       userRoute = require("./modules/user/userRoute"),
       eventRoute = require("./modules/event/eventRoute")
 
-mongoose.connect("mongodb://localhost:27017/EventReminder", {useNewUrlParser: true});
+dotenv.config();
+mongoose.connect("mongodb://localhost:" + process.env.DB_PORT + "/EventReminder", {useNewUrlParser: true});
 const corsOptions = {
-    origin: 'http://192.168.2.78:4200',
+    origin: 'http://localhost:4200',
     optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204 
 }
 
@@ -29,6 +31,6 @@ app.use('/api/event', eventRoute);
 
 
 app.listen(3000, () => {
-    console.log("Server Started");
+    console.log("Server Started at" + 3000);
     
 })

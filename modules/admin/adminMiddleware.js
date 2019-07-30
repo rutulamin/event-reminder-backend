@@ -1,7 +1,8 @@
 var jwt = require("jsonwebtoken");
-var userMiddleware = {};
+const adminMiddleware = {};
 
-userMiddleware.verifyToken = function (req, res, next) {
+adminMiddleware.verifyToken = function (req, res, next) {
+
     if(!req.headers.authorization) {   
       return res.status(401).send('Unauthorized request');
     }
@@ -11,14 +12,15 @@ userMiddleware.verifyToken = function (req, res, next) {
     }
     let payload = jwt.verify(token, '#$rutul$#');
     if(!payload) {
-      return res.status(401).send('Unauthorized request');  
+      return res.status(401).send('Unauthorized request')  ;  
     }
     if(payload.role !== 'user') {
       return res.status(401).send('Unauthorized request');
     }
     req.user_id = payload.subject;
     req.role = payload.role;
-    next()
+    next();
+    
   }
 
-module.exports = userMiddleware;
+module.exports = adminMiddleware;

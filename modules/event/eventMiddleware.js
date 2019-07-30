@@ -13,7 +13,11 @@ eventMiddleware.verifyToken = function (req, res, next) {
     if(!payload) {
       return res.status(401).send('Unauthorized request')  ;  
     }
+    if(payload.role !== 'user') {
+      return res.status(401).send('Unauthorized request');
+    }
     req.user_id = payload.subject;
+    req.role = payload.role;
     next()
   }
 

@@ -38,7 +38,7 @@ router.post("/register", (req, res) => {
                     if (err) {
                         res.json({msg: "Error"});
                     }
-                    let payload = { subject: usersdata._id}
+                    let payload = { subject: usersdata._id, role: usersdata.role }
                     let token = jwt.sign(payload, '#$rutul$#');
                     res.json({token: token});
                 }
@@ -61,7 +61,7 @@ router.post("/login", (req, res) => {
                 if(data.status == 'inactive') {
                     res.json({msg: "Your account is deativaed!!"});
                 }                 
-                let payload = { subject: data._id}
+                let payload = { subject: data._id, role: data.role}
                 let token = jwt.sign(payload, '#$rutul$#');
                 res.json({token: token});
             } else {
